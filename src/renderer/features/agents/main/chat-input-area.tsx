@@ -105,6 +105,7 @@ import {
   blobToBase64,
   getAudioFormat,
 } from "../../../lib/hooks/use-voice-recording"
+import { useBrowserSpeech } from "../../../lib/hooks/use-browser-speech"
 import { getResolvedHotkey } from "../../../lib/hotkeys"
 import { customHotkeysAtom } from "../../../lib/atoms"
 import { toast } from "sonner"
@@ -715,7 +716,7 @@ export const ChatInputArea = memo(function ChatInputArea({
     updateMode(getNextMode(subChatMode))
   }, [subChatMode, updateMode])
 
-  // Voice input state
+  // Voice input state - cloud-based transcription (MediaRecorder + Whisper API)
   const {
     isRecording: isVoiceRecording,
     audioLevel: voiceAudioLevel,
@@ -723,6 +724,18 @@ export const ChatInputArea = memo(function ChatInputArea({
     stopRecording: stopVoiceRecording,
     cancelRecording: cancelVoiceRecording,
   } = useVoiceRecording()
+
+  // Browser-based speech recognition fallback (Web Speech API, no API key needed)
+  const {
+    isListening: isBrowserListening,
+    isSupported: isBrowserSpeechSupported,
+    error: browserSpeechError,
+    interimText: browserInterimText,
+    startListening: startBrowserListening,
+    stopListening: stopBrowserListening,
+    cancelListening: cancelBrowserListening,
+  } = useBrowserSpeech()
+
   const [isTranscribing, setIsTranscribing] = useState(false)
   const voiceMountedRef = useRef(true)
 
@@ -735,9 +748,11 @@ export const ChatInputArea = memo(function ChatInputArea({
 
   const transcribeMutation = trpc.voice.transcribe.useMutation()
 
-  // Check if voice input is available (authenticated OR has OPENAI_API_KEY)
+  // Check if voice input is available via cloud (authenticated OR has OPENAI_API_KEY)
   const { data: voiceAvailability } = trpc.voice.isAvailable.useQuery()
-  const isVoiceAvailable = voiceAvailability?.available ?? false
+  const isCloudVoiceAvailable = voiceAvailability?.available ?? false
+  // Use browser speech as fallback when cloud isn't available
+  const isVoiceAvailable = isCloudVoiceAvailable || isBrowserSpeechSupported
 
   // Get resolved voice input hotkey
   const customHotkeys = useAtomValue(customHotkeysAtom)
@@ -770,82 +785,129 @@ export const ChatInputArea = memo(function ChatInputArea({
     return () => window.removeEventListener("keydown", handleKeyDown, true)
   }, [hasCustomClaudeConfig, provider, isActive])
 
-  // Voice input handlers
+  // Voice input handlers (supports both cloud and browser-based transcription)
   const handleVoiceMouseDown = useCallback(async () => {
-    if (isStreaming || isTranscribing || isVoiceRecording) return
-    try {
-      await startVoiceRecording()
-    } catch (err) {
-      console.error("[VoiceInput] Failed to start recording:", err)
-      toast.error(err instanceof Error ? err.message : "Failed to start recording")
+    if (isStreaming || isTranscribing || isVoiceRecording || isBrowserListening) return
+
+    if (isCloudVoiceAvailable) {
+      // Use cloud-based transcription (MediaRecorder + Whisper API / 21st.dev backend)
+      try {
+        await startVoiceRecording()
+      } catch (err) {
+        console.error("[VoiceInput] Failed to start recording:", err)
+        toast.error(err instanceof Error ? err.message : "Failed to start recording")
+      }
+    } else if (isBrowserSpeechSupported) {
+      // Use browser-based speech recognition (Web Speech API, no API key needed)
+      try {
+        startBrowserListening()
+      } catch (err) {
+        console.error("[VoiceInput] Failed to start browser speech:", err)
+        toast.error(err instanceof Error ? err.message : "Speech recognition failed")
+      }
+    } else {
+      toast.error("Voice input is not available. Configure an OpenAI API key in Settings > Models.")
     }
-  }, [isStreaming, isTranscribing, isVoiceRecording, startVoiceRecording])
+  }, [isStreaming, isTranscribing, isVoiceRecording, isBrowserListening,
+      isCloudVoiceAvailable, isBrowserSpeechSupported,
+      startVoiceRecording, startBrowserListening])
 
   const handleVoiceMouseUp = useCallback(async () => {
-    if (!isVoiceRecording) return
+    if (isVoiceRecording) {
+      // Cloud-based path: stop recording and transcribe via API
+      setIsTranscribing(true)
 
-    // Set transcribing immediately to avoid visual flash between recording and transcribing states
-    setIsTranscribing(true)
+      try {
+        const blob = await stopVoiceRecording()
 
-    try {
-      const blob = await stopVoiceRecording()
+        // Don't transcribe very short recordings (likely accidental clicks)
+        if (blob.size < 1000) {
+          console.log("[VoiceInput] Recording too short, ignoring")
+          if (voiceMountedRef.current) setIsTranscribing(false)
+          return
+        }
 
-      // Don't transcribe very short recordings (likely accidental clicks)
-      if (blob.size < 1000) {
-        console.log("[VoiceInput] Recording too short, ignoring")
-        if (voiceMountedRef.current) setIsTranscribing(false)
-        return
+        if (!voiceMountedRef.current) return
+
+        const base64 = await blobToBase64(blob)
+        const format = getAudioFormat(blob.type)
+
+        const result = await transcribeMutation.mutateAsync({
+          audio: base64,
+          format,
+        })
+
+        if (!voiceMountedRef.current) return
+
+        if (result.text && result.text.trim()) {
+          const current = (editorRef.current?.getValue() || "").trim()
+          const transcribed = result.text.trim()
+          const needsSpace = current.length > 0 && !/\s$/.test(current)
+          const newValue = current + (needsSpace ? " " : "") + transcribed
+          editorRef.current?.setValue(newValue)
+          editorRef.current?.focus()
+        } else {
+          toast.info("No speech detected")
+        }
+      } catch (err) {
+        console.error("[VoiceInput] Transcription failed:", err)
+        toast.error("Voice transcription failed")
+      } finally {
+        if (voiceMountedRef.current) {
+          setIsTranscribing(false)
+        }
       }
+    } else if (isBrowserListening) {
+      // Browser speech path: stop recognition and insert transcribed text directly
+      setIsTranscribing(true)
+      try {
+        const text = await stopBrowserListening()
+        if (!voiceMountedRef.current) return
 
-      if (!voiceMountedRef.current) return
-
-      const base64 = await blobToBase64(blob)
-      const format = getAudioFormat(blob.type)
-
-      const result = await transcribeMutation.mutateAsync({
-        audio: base64,
-        format,
-      })
-
-      if (!voiceMountedRef.current) return
-
-      if (result.text && result.text.trim()) {
-        const current = (editorRef.current?.getValue() || "").trim()
-        const transcribed = result.text.trim()
-        const needsSpace = current.length > 0 && !/\s$/.test(current)
-        const newValue = current + (needsSpace ? " " : "") + transcribed
-        editorRef.current?.setValue(newValue)
-        editorRef.current?.focus()
-      } else {
-        toast.info("No speech detected")
-      }
-    } catch (err) {
-      console.error("[VoiceInput] Transcription failed:", err)
-      toast.error("Voice transcription failed")
-    } finally {
-      if (voiceMountedRef.current) {
-        setIsTranscribing(false)
+        if (text) {
+          const current = (editorRef.current?.getValue() || "").trim()
+          const needsSpace = current.length > 0 && !/\s$/.test(current)
+          const newValue = current + (needsSpace ? " " : "") + text
+          editorRef.current?.setValue(newValue)
+          editorRef.current?.focus()
+        } else {
+          toast.info("No speech detected")
+        }
+      } catch (err) {
+        console.error("[VoiceInput] Browser speech failed:", err)
+        toast.error("Voice input failed")
+      } finally {
+        if (voiceMountedRef.current) {
+          setIsTranscribing(false)
+        }
       }
     }
-  }, [isVoiceRecording, stopVoiceRecording, transcribeMutation, editorRef])
+  }, [isVoiceRecording, isBrowserListening, stopVoiceRecording, stopBrowserListening,
+      transcribeMutation, editorRef])
 
   const handleVoiceMouseLeave = useCallback(() => {
     if (isVoiceRecording) {
       // Cancel instead of transcribing when leaving button area
       cancelVoiceRecording()
+    } else if (isBrowserListening) {
+      cancelBrowserListening()
     }
-  }, [isVoiceRecording, cancelVoiceRecording])
+  }, [isVoiceRecording, isBrowserListening, cancelVoiceRecording, cancelBrowserListening])
 
   // Auto-cancel recording when window loses focus (prevents stuck recording if keyup never fires)
   useEffect(() => {
-    if (!isVoiceRecording) return
+    if (!isVoiceRecording && !isBrowserListening) return
 
     const handleFocusLoss = () => {
-      cancelVoiceRecording()
+      if (isVoiceRecording) cancelVoiceRecording()
+      if (isBrowserListening) cancelBrowserListening()
     }
 
     const handleVisibilityChange = () => {
-      if (document.hidden) cancelVoiceRecording()
+      if (document.hidden) {
+        if (isVoiceRecording) cancelVoiceRecording()
+        if (isBrowserListening) cancelBrowserListening()
+      }
     }
 
     window.addEventListener("blur", handleFocusLoss)
@@ -854,7 +916,7 @@ export const ChatInputArea = memo(function ChatInputArea({
       window.removeEventListener("blur", handleFocusLoss)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [isVoiceRecording, cancelVoiceRecording])
+  }, [isVoiceRecording, isBrowserListening, cancelVoiceRecording, cancelBrowserListening])
 
   // Keyboard shortcut: Voice input hotkey (push-to-talk: hold to record, release to transcribe)
   useEffect(() => {
@@ -926,8 +988,8 @@ export const ChatInputArea = memo(function ChatInputArea({
       e.preventDefault()
       e.stopPropagation()
 
-      // Start recording on keydown
-      if (!isVoiceRecording && !isTranscribing && !isStreaming) {
+      // Start recording/listening on keydown
+      if (!isVoiceRecording && !isBrowserListening && !isTranscribing && !isStreaming) {
         handleVoiceMouseDown()
       }
     }
@@ -936,8 +998,8 @@ export const ChatInputArea = memo(function ChatInputArea({
       // Stop recording when the main key (or any modifier for modifier-only hotkeys) is released
       if (!isMainKeyRelease(e)) return
 
-      // Only stop if we're currently recording
-      if (isVoiceRecording) {
+      // Only stop if we're currently recording or listening
+      if (isVoiceRecording || isBrowserListening) {
         e.preventDefault()
         e.stopPropagation()
         handleVoiceMouseUp()
@@ -950,7 +1012,7 @@ export const ChatInputArea = memo(function ChatInputArea({
       window.removeEventListener("keydown", handleKeyDown, true)
       window.removeEventListener("keyup", handleKeyUp, true)
     }
-  }, [voiceInputHotkey, isVoiceRecording, isTranscribing, isStreaming, handleVoiceMouseDown, handleVoiceMouseUp, isActive])
+  }, [voiceInputHotkey, isVoiceRecording, isBrowserListening, isTranscribing, isStreaming, handleVoiceMouseDown, handleVoiceMouseUp, isActive])
 
   // Save draft on blur (with attachments and text contexts)
   const handleEditorBlur = useCallback(async () => {
@@ -1642,10 +1704,12 @@ export const ChatInputArea = memo(function ChatInputArea({
                     }}
                   />
 
-                  {/* Voice wave indicator / transcribing state / normal toolbar */}
-                  {isVoiceRecording ? (
-                    <VoiceWaveIndicator isRecording={isVoiceRecording} audioLevel={voiceAudioLevel} />
-                  ) : isTranscribing ? (
+	                  {/* Voice wave indicator / transcribing state / normal toolbar */}
+	                  {isVoiceRecording ? (
+	                    <VoiceWaveIndicator isRecording={isVoiceRecording} audioLevel={voiceAudioLevel} />
+	                  ) : isBrowserListening ? (
+	                    <VoiceWaveIndicator isRecording={true} audioLevel={0.5} />
+	                  ) : isTranscribing ? (
                     <div className="flex items-center px-2 h-5">
                       <IconSpinner className="size-3.5 text-muted-foreground" />
                     </div>

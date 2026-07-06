@@ -25,8 +25,8 @@ function initAutoUpdaterConfig() {
   autoUpdater.autoRunAppAfterInstall = true // Restart app after install
 }
 
-// CDN base URL for updates
-const CDN_BASE = "https://cdn.21st.dev/releases/desktop"
+// Fallback URL for force check cache-busting (primary updates use GitHub provider)
+const GITHUB_RELEASES_URL = "https://github.com/HS435116/rapid-code/releases/latest/download"
 
 // Minimum interval between update checks (prevent spam on rapid focus/blur)
 const MIN_CHECK_INTERVAL = 60 * 1000 // 1 minute
@@ -100,12 +100,13 @@ export async function initAutoUpdater(getWindows: () => BrowserWindow[]) {
   autoUpdater.allowDowngrade = false
   log.info(`[AutoUpdater] Using update channel: ${savedChannel}`)
 
-  // Configure feed URL to point to R2 CDN
-  // Note: We use a custom request headers to bypass CDN cache
-  autoUpdater.setFeedURL({
-    provider: "generic",
-    url: CDN_BASE,
-  })
+	// Configure feed URL to point to GitHub Releases
+	// Changed from upstream CDN to GitHub Releases for fork compatibility
+	autoUpdater.setFeedURL({
+	  provider: "github",
+	  owner: "HS435116",
+	  repo: "rapid-code",
+	})
 
   // Add cache-busting to update requests
   autoUpdater.requestHeaders = {
@@ -180,7 +181,7 @@ export async function initAutoUpdater(getWindows: () => BrowserWindow[]) {
   // Register IPC handlers
   registerIpcHandlers()
 
-  log.info("[AutoUpdater] Initialized with feed URL:", CDN_BASE)
+  log.info("[AutoUpdater] Initialized with feed URL:", GITHUB_RELEASES_URL)
 }
 
 /**
@@ -198,17 +199,20 @@ function registerIpcHandlers() {
       if (force) {
         const cacheBuster = `?t=${Date.now()}`
         autoUpdater.setFeedURL({
-          provider: "generic",
-          url: `${CDN_BASE}${cacheBuster}`,
+          provider: "github",
+          owner: "HS435116",
+          repo: "rapid-code",
+          url: `${GITHUB_RELEASES_URL}${cacheBuster}`,
         })
-        log.info("[AutoUpdater] Force check with cache-busting:", `${CDN_BASE}${cacheBuster}`)
+        log.info("[AutoUpdater] Force check with cache-busting:", `${GITHUB_RELEASES_URL}${cacheBuster}`)
       }
       const result = await autoUpdater.checkForUpdates()
       // Reset feed URL back to normal after force check
       if (force) {
         autoUpdater.setFeedURL({
-          provider: "generic",
-          url: CDN_BASE,
+          provider: "github",
+          owner: "HS435116",
+          repo: "rapid-code",
         })
       }
       return result?.updateInfo || null
