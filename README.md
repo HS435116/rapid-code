@@ -11,27 +11,16 @@
 ---
 
 <p align="center">
-  <img src="screenshots/main-interface.png" alt="Main Interface" width="90%">
-  <br>
-  <em>Multi-agent split pane — run multiple AI agents side by side</em>
-</p>
-
-<p align="center">
-  <img src="screenshots/chat-view.png" alt="Chat View" width="45%">
-  <img src="screenshots/plugin-marketplace.png" alt="Plugin Marketplace" width="45%">
-  <br>
-  <em>Chat interface (left) · Plugin marketplace (right)</em>
-</p>
-
-<p align="center">
-  <img src="screenshots/settings.png" alt="Settings" width="90%">
-  <br>
-  <em>Settings page</em>
+  <img src="demo.gif" alt="Rapid Code Demo" width="90%">
 </p>
 
 **Multi-agent AI coding assistant for desktop.**
 
 Rapid Code is a desktop application that runs multiple AI coding agents in parallel on your local projects. It integrates Claude Code CLI and OpenAI-compatible APIs, giving AI agents full read/write access to your filesystem, Git operations, and shell commands — all in an intuitive split-pane interface.
+
+<p align="center">
+  <img src="demo.gif" alt="Rapid Code Demo" width="90%">
+</p>
 
 ---
 
