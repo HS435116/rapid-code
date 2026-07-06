@@ -1,5 +1,13 @@
 # Rapid Code 🚀
 
+<p align="center">
+  <img src="https://img.shields.io/github/stars/HS435116/rapid-code?style=flat&logo=github" alt="Stars">
+  <img src="https://img.shields.io/github/license/HS435116/rapid-code?style=flat" alt="License">
+  <img src="https://img.shields.io/github/last-commit/HS435116/rapid-code?style=flat" alt="Last Commit">
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat" alt="PRs Welcome">
+  <a href="YOUR_DISCORD_INVITE_LINK"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=flat" alt="Discord"></a>
+</p>
+
 **Multi-agent AI coding assistant for desktop.**
 
 Rapid Code is a desktop application that runs multiple AI coding agents in parallel on your local projects. It integrates Claude Code CLI and OpenAI-compatible APIs, giving AI agents full read/write access to your filesystem, Git operations, and shell commands — all in an intuitive split-pane interface.
