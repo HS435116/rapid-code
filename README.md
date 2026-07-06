@@ -135,6 +135,14 @@ src/
 
 ---
 
+## Community
+
+- 📖 [掘金文章: Rapid Code 介绍](https://juejin.cn/post/7659034306871492660)
+- 💬 [Discord](YOUR_DISCORD_INVITE_LINK) — 讨论、反馈、插件开发
+- 🐛 [GitHub Issues](https://github.com/HS435116/rapid-code/issues) — Bug 报告 & 功能建议
+
+---
+
 ## Contributing
 
 Contributions welcome! Report bugs via Issues, submit features via Pull Requests.
