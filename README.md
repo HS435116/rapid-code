@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/github/license/HS435116/rapid-code?style=flat" alt="License">
   <img src="https://img.shields.io/github/last-commit/HS435116/rapid-code?style=flat" alt="Last Commit">
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat" alt="PRs Welcome">
-  <a href="YOUR_DISCORD_INVITE_LINK"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=flat" alt="Discord"></a>
+  <a href="https://github.com/HS435116/rapid-code/discussions"><img src="https://img.shields.io/badge/Discussions-Join-8A2BE2?style=flat" alt="Discussions"></a>
 </p>
 
 ---
@@ -137,9 +137,9 @@ src/
 
 ## Community
 
-- 📖 [掘金文章: Rapid Code 介绍](https://juejin.cn/post/7659034306871492660)
-- 💬 [Discord](YOUR_DISCORD_INVITE_LINK) — 讨论、反馈、插件开发
+- 💬 [GitHub Discussions](https://github.com/HS435116/rapid-code/discussions) — 讨论、反馈、Q&A
 - 🐛 [GitHub Issues](https://github.com/HS435116/rapid-code/issues) — Bug 报告 & 功能建议
+- 📖 [掘金文章: Rapid Code 介绍](https://juejin.cn/post/7659034306871492660)
 
 ---
 
