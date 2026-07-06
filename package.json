@@ -1,12 +1,14 @@
 {
   "name": "rapid-code",
   "version": "0.0.72",
-  "private": true,
+  "private": false,
   "description": "Rapid Code - Multi-agent AI coding assistant desktop app",
-  "homepage": "https://github.com/rapid-code/rapid-code",
+  "license": "MIT",
+  "homepage": "https://github.com/HS435116/rapid-code",
   "author": {
-    "name": "Rapid Code",
-    "email": "support@rapidcode.dev"
+    "name": "HS435116",
+    "email": "hs0714@qq.com",
+    "url": "https://github.com/HS435116"
   },
   "main": "out/main/index.js",
   "scripts": {

@@ -1,45 +1,69 @@
-# Contributing to 1Code
+# Contributing to Rapid Code
 
-## Building from Source
+Thank you for your interest in contributing! We welcome contributions from everyone.
 
-Prerequisites: Bun, Python, Xcode Command Line Tools (macOS)
+## Code of Conduct
+
+This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
+
+## How to Contribute
+
+### Reporting Bugs
+
+1. Check if the bug has already been reported in [Issues](https://github.com/HS435116/rapid-code/issues)
+2. If not, open a new issue with:
+   - A clear title and description
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Screenshots if applicable
+   - Your environment (OS, app version)
+
+### Suggesting Features
+
+1. Open an issue with the label "enhancement"
+2. Describe the feature and the problem it solves
+3. Explain how it would work
+
+### Pull Requests
+
+1. Fork the repository
+2. Create a new branch: `git checkout -b feature/your-feature-name`
+3. Make your changes
+4. Test your changes: `npm run dev`
+5. Commit with clear messages
+6. Push and open a Pull Request
+
+### Development Setup
 
 ```bash
-bun install
-bun run dev      # Development with hot reload
-bun run build    # Production build
-bun run package:mac  # Create distributable
+git clone https://github.com/HS435116/rapid-code.git
+cd rapid-code
+npm install
+cp .env.example .env
+# Edit .env with your API keys
+npm run dev
 ```
 
-## Open Source vs Hosted Version
+### Coding Guidelines
 
-This is the open-source version of 1Code. Some features require the hosted backend at 1code.dev:
+- Follow the existing code style
+- Use TypeScript for all new code
+- Add comments for non-obvious logic
+- Keep components focused
+- Use Jotai atoms for shared state
+- Use tRPC for backend communication
 
-| Feature | Open Source | Hosted (1code.dev) |
-|---------|-------------|-------------------|
-| Local AI chat | Yes | Yes |
-| Claude Code integration | Yes | Yes |
-| Git worktrees | Yes | Yes |
-| Terminal | Yes | Yes |
-| Sign in / Sync | No | Yes |
-| Background agents | No | Yes |
-| Auto-updates | No | Yes |
-| Private Discord & support | No | Yes |
-| Early access to new features | No | Yes |
+### Commit Messages
 
-## Analytics & Telemetry
+Use conventional commits:
 
-Analytics (PostHog) and error tracking (Sentry) are **disabled by default** in open source builds. They only activate if you set the environment variables in `.env.local`.
+```
+feat: add ability to do X
+fix: correct issue with Y
+docs: update README
+chore: update dependencies
+```
 
-## Contributing
+## Questions?
 
-1. Fork the repo
-2. Create a feature branch
-3. Make your changes
-4. Submit a PR
-
-Join our [Discord](https://discord.gg/8ektTZGnj4) for discussions.
-
-## License
-
-Apache 2.0
+Open a [Discussion](https://github.com/HS435116/rapid-code/discussions) or email **hs0714@qq.com**.
