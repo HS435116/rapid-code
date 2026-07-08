@@ -176,6 +176,15 @@
       {
         "from": "resources/bin/VERSION",
         "to": "bin/VERSION"
+      },
+      {
+        "from": "scripts/mcp",
+        "to": "mcp",
+        "filter": ["**/*.py", "**/*.md"]
+      },
+      {
+        "from": "agnes-image-mcp.js",
+        "to": "agnes-image-mcp.js"
       }
     ],
     "asar": true,

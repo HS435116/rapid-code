@@ -214,9 +214,9 @@ function McpServerDetail({
                 <div className="flex gap-3 px-3 py-2">
                   <span className="text-xs text-muted-foreground w-16 shrink-0">Env</span>
                   <div className="flex flex-wrap gap-1">
-                    {Object.keys(connection.env).map((key) => (
-                      <span key={key} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground select-text">
-                        {key}
+                    {Object.entries(connection.env).map(([key, value]) => (
+                      <span key={key} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground select-text" title={value}>
+                        {key}={value.length > 20 ? value.slice(0, 20) + "..." : value}
                       </span>
                     ))}
                   </div>
@@ -292,6 +292,7 @@ function CreateMcpServerForm({
   const [command, setCommand] = useState("")
   const [args, setArgs] = useState("")
   const [url, setUrl] = useState("")
+  const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([{ key: "", value: "" }])
   const [scope, setScope] = useState<"global" | "project">("global")
   const effectiveScope = provider === "codex" ? "global" : scope
 
@@ -302,6 +303,12 @@ function CreateMcpServerForm({
 
   const handleSubmit = async () => {
     const parsedArgs = args.trim() ? args.split(/\s+/) : undefined
+    // Build env vars from form (filter out empty keys)
+    const parsedEnv = envVars
+      .filter(env => env.key.trim().length > 0)
+      .reduce((acc, env) => ({ ...acc, [env.key.trim()]: env.value }), {})
+    const env = Object.keys(parsedEnv).length > 0 ? parsedEnv : undefined
+
     try {
       if (provider === "codex") {
         await addCodexServerMutation.mutateAsync({
@@ -311,6 +318,7 @@ function CreateMcpServerForm({
           args: type === "stdio" ? parsedArgs : undefined,
           url: type === "http" ? url.trim() : undefined,
           scope: "global",
+          env,
         })
       } else {
         await addClaudeServerMutation.mutateAsync({
@@ -320,6 +328,7 @@ function CreateMcpServerForm({
           args: type === "stdio" ? parsedArgs : undefined,
           url: type === "http" ? url.trim() : undefined,
           scope: effectiveScope,
+          env,
           ...(effectiveScope === "project" && projectPath ? { projectPath } : {}),
         })
       }
@@ -409,6 +418,53 @@ function CreateMcpServerForm({
                 className="font-mono"
               />
               <p className="text-[11px] text-muted-foreground">Space-separated arguments</p>
+            </div>
+            {/* Environment Variables */}
+            <div className="space-y-2">
+              <Label>Environment Variables</Label>
+              {envVars.map((env, index) => (
+                <div key={index} className="flex gap-2 items-start">
+                  <Input
+                    value={env.key}
+                    onChange={(e) => {
+                      const next = [...envVars]
+                      next[index] = { ...next[index], key: e.target.value }
+                      setEnvVars(next)
+                    }}
+                    placeholder="KEY"
+                    className="font-mono w-2/5"
+                  />
+                  <Input
+                    value={env.value}
+                    onChange={(e) => {
+                      const next = [...envVars]
+                      next[index] = { ...next[index], value: e.target.value }
+                      setEnvVars(next)
+                    }}
+                    placeholder="VALUE (API key, etc.)"
+                    className="font-mono flex-1"
+                    type={env.key.toUpperCase().includes("KEY") || env.key.toUpperCase().includes("TOKEN") || env.key.toUpperCase().includes("SECRET") ? "password" : "text"}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 p-0 text-muted-foreground hover:text-red-500 shrink-0"
+                    onClick={() => setEnvVars(envVars.filter((_, i) => i !== index))}
+                    disabled={envVars.length === 1}
+                    aria-label="Remove env var"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs"
+                onClick={() => setEnvVars([...envVars, { key: "", value: "" }])}
+              >
+                + Add Variable
+              </Button>
             </div>
           </>
         ) : (
