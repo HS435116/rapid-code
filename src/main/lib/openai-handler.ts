@@ -159,16 +159,20 @@ export async function* streamOpenAI(
     }
   }
 
-  const textId = `msg-${Date.now()}`
+	const textId = `msg-${Date.now()}`
   const maxRounds = 5
   let hasStreamedText = false
+
+  // 自动续写计数器
+  let autoContinueCount = 0
+  const MAX_AUTO_CONTINUE = 3
 
   for (let round = 0; round < maxRounds; round++) {
     const body: any = {
       model: safeModel,
       messages: currentMessages,
       stream: true,
-      max_tokens: 4096,
+      max_tokens: 16384,
       temperature: 0.7,
     }
     if (allTools.length > 0) body.tools = allTools
@@ -207,6 +211,7 @@ export async function* streamOpenAI(
     let fullContent = ""
     let toolCalls: any[] = []
     let isDone = false
+    let finishReason: string | null = null
 
 	    let textStarted = false
 	    let stepStarted = false
@@ -303,8 +308,9 @@ export async function* streamOpenAI(
                 if (tc.id) existing.id = tc.id
               }
             }
-            if (chunk.choices?.[0]?.finish_reason === "tool_calls") isDone = true
-            if (chunk.choices?.[0]?.finish_reason === "stop") isDone = true
+            if (chunk.choices?.[0]?.finish_reason === "tool_calls") { isDone = true; finishReason = "tool_calls" }
+            if (chunk.choices?.[0]?.finish_reason === "stop") { isDone = true; finishReason = "stop" }
+            if (chunk.choices?.[0]?.finish_reason === "length") { isDone = true; finishReason = "length" }
           } catch {}
         }
       }
@@ -362,10 +368,22 @@ export async function* streamOpenAI(
         function: { name: tc.function.name, arguments: tc.function.arguments },
       }))
     }
-    currentMessages.push(assistantMsg)
+	    currentMessages.push(assistantMsg)
 
-    // 执行工具
-    if (toolCalls.length === 0) break
+	    // 自动续写检测：如果 finish_reason 为 "length"，说明到达 token 上限被截断
+	    // 自动追加"请继续"并重试，最多 MAX_AUTO_CONTINUE 次
+	    if (isDone && finishReason === "length" && fullContent && autoContinueCount < MAX_AUTO_CONTINUE) {
+	      autoContinueCount++
+	      console.log(`[OpenAI] 检测到截断 (round=${round}), 自动续写第 ${autoContinueCount}/${MAX_AUTO_CONTINUE} 次`)
+	      currentMessages.push({
+	        role: "user",
+	        content: "请继续你的输出，不要重复已输出的内容，直接从断点继续。",
+	      })
+	      continue // 重新进入循环，发送续写请求
+	    }
+
+	    // 执行工具
+	    if (toolCalls.length === 0) break
 
     for (const tc of toolCalls) {
       try {

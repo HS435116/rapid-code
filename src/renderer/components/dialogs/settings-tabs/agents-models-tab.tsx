@@ -1002,7 +1002,7 @@ export function AgentsModelsTab() {
     {"role": "user", "content": "{user_input}"}
   ],
   "temperature": 0.7,
-  "max_tokens": 1024
+  "max_tokens": 16384
 }'
                 value={editJson}
                 onChange={(e) => setEditJson(e.target.value)}
