@@ -1,0 +1,11 @@
+# ASR backends (pick one):
+# Option A: faster-whisper (faster, lower memory, recommended if available for your Python version)
+#   pip install faster-whisper
+# Option B: openai-whisper (more compatible with newer Python versions)
+#   pip install openai-whisper
+#   pip install tiktoken
+
+# TTS backends (pick one):
+# Option A: Windows SAPI (built-in, no install needed, robotic voice)
+# Option B: Kokoro (better quality, needs Python)
+#   pip install kokoro soundfile numpy

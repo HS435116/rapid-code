@@ -11,10 +11,38 @@ interface UseBrowserSpeechReturn {
   cancelListening: () => void
 }
 
+// Web Speech API types not included in standard TS DOM lib
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number
+  readonly results: SpeechRecognitionResultList
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: string
+  readonly message: string
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  maxAlternatives: number
+  start(): void
+  stop(): void
+  abort(): void
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+}
+
+interface SpeechRecognitionConstructor {
+  new(): SpeechRecognition
+}
+
 declare global {
   interface Window {
-    SpeechRecognition?: typeof SpeechRecognition
-    webkitSpeechRecognition?: typeof SpeechRecognition
+    SpeechRecognition?: SpeechRecognitionConstructor
+    webkitSpeechRecognition?: SpeechRecognitionConstructor
   }
 }
 
@@ -39,8 +67,7 @@ export function useBrowserSpeech(language = "zh-CN"): UseBrowserSpeechReturn {
   const isActiveRef = useRef(false)
 
   // Check browser support
-  const SpeechRecognitionAPI =
-    window.SpeechRecognition || window.webkitSpeechRecognition
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition
   const isSupported = !!SpeechRecognitionAPI
 
   // Cleanup
@@ -109,42 +136,68 @@ export function useBrowserSpeech(language = "zh-CN"): UseBrowserSpeechReturn {
         setInterimText(interim)
       }
 
-      recognition.onerror = (event) => {
-        console.error("[BrowserSpeech] Error:", event.error)
+	      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+	        console.warn("[BrowserSpeech] Error:", event.error)
 
-        let errMsg: string
-        switch (event.error) {
-          case "no-speech":
-            errMsg = "No speech detected"
-            break
-          case "aborted":
-            errMsg = "Speech recognition was aborted"
-            break
-          case "audio-capture":
-            errMsg = "No microphone found"
-            break
-          case "not-allowed":
-            errMsg = "Microphone access denied"
-            break
-          case "network":
-            errMsg = "Network error (speech recognition service unavailable)"
-            break
-          case "language-not-supported":
-            errMsg = `Language "${language}" is not supported`
-            break
-          case "service-not-allowed":
-            errMsg = "Speech recognition service not allowed"
-            break
-          default:
-            errMsg = `Speech recognition error: ${event.error}`
-        }
+	        // "no-speech" is normal silence timeout — restart after a short delay
+	        if (event.error === "no-speech" && isActiveRef.current) {
+	          setTimeout(() => {
+	            if (!isActiveRef.current) return
+	            try {
+	              const newRec = new SpeechRecognitionAPI()
+	              newRec.continuous = true
+	              newRec.interimResults = true
+	              newRec.lang = language
+	              newRec.maxAlternatives = 1
+	              newRec.onresult = recognition.onresult
+	              newRec.onerror = recognition.onerror
+	              newRec.onend = recognition.onend
+	              recognitionRef.current = newRec
+	              newRec.start()
+	            } catch {
+	              // If restart fails, stop cleanly
+	              isActiveRef.current = false
+	              setIsListening(false)
+	            }
+	          }, 300)
+	          return
+	        }
 
-        const err = new Error(errMsg)
-        setError(err)
-        rejectRef.current?.(err)
-        cleanup()
-        setIsListening(false)
-      }
+	        let errMsg: string
+	        switch (event.error) {
+	          case "aborted":
+	            errMsg = "语音识别已中断"
+	            break
+	          case "audio-capture":
+	            errMsg = "未找到麦克风，请连接麦克风设备"
+	            break
+	          case "not-allowed":
+	            errMsg = "麦克风权限被拒绝，请在系统设置中允许麦克风访问"
+	            break
+	          case "network":
+	            errMsg = "语音识别网络错误。请检查代理设置：运行 set HTTP_PROXY= && set HTTPS_PROXY= 清除代理环境变量后重试"
+	            break
+	          case "language-not-supported":
+	            errMsg = `语言 "${language}" 不受支持`
+	            break
+	          case "service-not-allowed":
+	            errMsg = "语音识别服务未授权"
+	            break
+	          default:
+	            errMsg = `语音识别错误: ${event.error}`
+	        }
+
+	        const err = new Error(errMsg)
+	        setError(err)
+	        // Notify the reject callback so stopListening() can surface the error
+	        if (rejectRef.current) {
+	          rejectRef.current(err)
+	          rejectRef.current = null
+	          resolveRef.current = null
+	        }
+	        cleanup()
+	        setIsListening(false)
+	      }
 
       recognition.onend = () => {
         setIsListening(false)

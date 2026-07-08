@@ -748,11 +748,22 @@ export const ChatInputArea = memo(function ChatInputArea({
 
   const transcribeMutation = trpc.voice.transcribe.useMutation()
 
+  // Local voice dialogue (offline ASR + TTS)
+  const { data: localVoiceDeps } = trpc.voiceDialogue.checkDeps.useQuery()
+  const isLocalAsrAvailable = localVoiceDeps?.asrAvailable ?? false
+  const isLocalTtsAvailable = localVoiceDeps?.ttsAvailable ?? false
+  const transcribeLocalMutation = trpc.voiceDialogue.transcribeLocal.useMutation()
+
+  // Track whether editor was empty before voice recording started (for auto-send)
+  const wasEmptyBeforeRecordingRef = useRef(true)
+  // Track which ASR method was used (for branching in handleVoiceMouseUp)
+  const asrMethodRef = useRef<"cloud" | "local" | null>(null)
+
   // Check if voice input is available via cloud (authenticated OR has OPENAI_API_KEY)
   const { data: voiceAvailability } = trpc.voice.isAvailable.useQuery()
   const isCloudVoiceAvailable = voiceAvailability?.available ?? false
-  // Use browser speech as fallback when cloud isn't available
-  const isVoiceAvailable = isCloudVoiceAvailable || isBrowserSpeechSupported
+  // Voice availability: cloud > local ASR > browser speech
+  const isVoiceAvailable = isCloudVoiceAvailable || isLocalAsrAvailable || isBrowserSpeechSupported
 
   // Get resolved voice input hotkey
   const customHotkeys = useAtomValue(customHotkeysAtom)
@@ -789,8 +800,21 @@ export const ChatInputArea = memo(function ChatInputArea({
   const handleVoiceMouseDown = useCallback(async () => {
     if (isStreaming || isTranscribing || isVoiceRecording || isBrowserListening) return
 
-    if (isCloudVoiceAvailable) {
-      // Use cloud-based transcription (MediaRecorder + Whisper API / 21st.dev backend)
+    // Record whether editor was empty — used for auto-send after transcription
+    wasEmptyBeforeRecordingRef.current = !(editorRef.current?.getValue()?.trim())
+
+    if (isLocalAsrAvailable) {
+      // Use local ASR (faster-whisper, offline, free, privacy-safe)
+      asrMethodRef.current = "local"
+      try {
+        await startVoiceRecording()
+      } catch (err) {
+        console.error("[VoiceInput] Failed to start recording:", err)
+        toast.error(err instanceof Error ? err.message : "Failed to start recording")
+      }
+    } else if (isCloudVoiceAvailable) {
+      // Use cloud-based transcription (Whisper API / 21st.dev backend)
+      asrMethodRef.current = "cloud"
       try {
         await startVoiceRecording()
       } catch (err) {
@@ -799,6 +823,7 @@ export const ChatInputArea = memo(function ChatInputArea({
       }
     } else if (isBrowserSpeechSupported) {
       // Use browser-based speech recognition (Web Speech API, no API key needed)
+      asrMethodRef.current = null
       try {
         startBrowserListening()
       } catch (err) {
@@ -809,12 +834,12 @@ export const ChatInputArea = memo(function ChatInputArea({
       toast.error("Voice input is not available. Configure an OpenAI API key in Settings > Models.")
     }
   }, [isStreaming, isTranscribing, isVoiceRecording, isBrowserListening,
-      isCloudVoiceAvailable, isBrowserSpeechSupported,
-      startVoiceRecording, startBrowserListening])
+      isCloudVoiceAvailable, isLocalAsrAvailable, isBrowserSpeechSupported,
+      startVoiceRecording, startBrowserListening, editorRef])
 
   const handleVoiceMouseUp = useCallback(async () => {
     if (isVoiceRecording) {
-      // Cloud-based path: stop recording and transcribe via API
+      // MediaRecorder path: cloud or local ASR
       setIsTranscribing(true)
 
       try {
@@ -832,10 +857,21 @@ export const ChatInputArea = memo(function ChatInputArea({
         const base64 = await blobToBase64(blob)
         const format = getAudioFormat(blob.type)
 
-        const result = await transcribeMutation.mutateAsync({
-          audio: base64,
-          format,
-        })
+        // Choose transcription method based on what was started in handleVoiceMouseDown
+        let result: { text: string }
+        if (asrMethodRef.current === "local") {
+          result = await transcribeLocalMutation.mutateAsync({
+            audio: base64,
+            format,
+            language: "zh",
+          })
+        } else {
+          // Cloud transcription (default)
+          result = await transcribeMutation.mutateAsync({
+            audio: base64,
+            format,
+          })
+        }
 
         if (!voiceMountedRef.current) return
 
@@ -846,12 +882,17 @@ export const ChatInputArea = memo(function ChatInputArea({
           const newValue = current + (needsSpace ? " " : "") + transcribed
           editorRef.current?.setValue(newValue)
           editorRef.current?.focus()
+
+          // Auto-send if editor was empty before recording
+          if (wasEmptyBeforeRecordingRef.current) {
+            setTimeout(() => onSend(), 100)
+          }
         } else {
           toast.info("No speech detected")
         }
       } catch (err) {
         console.error("[VoiceInput] Transcription failed:", err)
-        toast.error("Voice transcription failed")
+        toast.error("语音转文字失败")
       } finally {
         if (voiceMountedRef.current) {
           setIsTranscribing(false)
@@ -865,25 +906,30 @@ export const ChatInputArea = memo(function ChatInputArea({
         if (!voiceMountedRef.current) return
 
         if (text) {
-          const current = (editorRef.current?.getValue() || "").trim()
-          const needsSpace = current.length > 0 && !/\s$/.test(current)
-          const newValue = current + (needsSpace ? " " : "") + text
-          editorRef.current?.setValue(newValue)
-          editorRef.current?.focus()
-        } else {
+	          const current = (editorRef.current?.getValue() || "").trim()
+	          const needsSpace = current.length > 0 && !/\s$/.test(current)
+	          const newValue = current + (needsSpace ? " " : "") + text
+	          editorRef.current?.setValue(newValue)
+	          editorRef.current?.focus()
+
+	          // Auto-send if editor was empty before recording
+	          if (wasEmptyBeforeRecordingRef.current) {
+	            setTimeout(() => onSend(), 100)
+	          }
+	        } else {
           toast.info("No speech detected")
         }
       } catch (err) {
-        console.error("[VoiceInput] Browser speech failed:", err)
-        toast.error("Voice input failed")
-      } finally {
+	        console.error("[VoiceInput] Browser speech failed:", err)
+	        toast.error(err instanceof Error ? err.message : "语音输入失败")
+	      } finally {
         if (voiceMountedRef.current) {
           setIsTranscribing(false)
         }
       }
     }
   }, [isVoiceRecording, isBrowserListening, stopVoiceRecording, stopBrowserListening,
-      transcribeMutation, editorRef])
+      transcribeMutation, transcribeLocalMutation, editorRef, onSend])
 
   const handleVoiceMouseLeave = useCallback(() => {
     if (isVoiceRecording) {
@@ -893,6 +939,23 @@ export const ChatInputArea = memo(function ChatInputArea({
       cancelBrowserListening()
     }
   }, [isVoiceRecording, isBrowserListening, cancelVoiceRecording, cancelBrowserListening])
+
+  // TTS audio playback - receive synthesized speech from main process
+  useEffect(() => {
+    const api = window.desktopApi
+    if (!api?.onVoicePlayAudio) return
+
+    const unsub = api.onVoicePlayAudio((data) => {
+      try {
+        const audio = new Audio(`data:audio/${data.format};base64,${data.audioBase64}`)
+        audio.play().catch((err) => console.error("[TTS] Playback failed:", err))
+      } catch (err) {
+        console.error("[TTS] Failed to play audio:", err)
+      }
+    })
+
+    return () => unsub?.()
+  }, [])
 
   // Auto-cancel recording when window loses focus (prevents stuck recording if keyup never fires)
   useEffect(() => {

@@ -11,7 +11,8 @@
   /* Override muted to be lighter for better code block visibility */
   --muted: 0 0% 94%;
   /* neutral-100 */
-  --muted-foreground: 0 0% 45%;
+  --muted-foreground: 0 0% 38%;
+  /* darker for AA contrast compliance */
 
   /* Custom text selection colors - uses theme's editor.selectionBackground */
   --selection-bg: var(--selection, var(--primary));
@@ -45,10 +46,35 @@ body:has([data-agents-page]) [data-sonner-toast] {
   /* Override muted to be brighter for better code block visibility */
   --muted: 0 0% 14%;
   /* ~#242424 - visible on dark backgrounds */
-  --muted-foreground: 0 0% 55%;
+  --muted-foreground: 0 0% 63%;
+  /* lighter for AA contrast compliance */
 
   /* Custom text selection colors - uses theme's editor.selectionBackground */
   --selection-bg: var(--selection, var(--primary));
+}
+
+/* Contrast fixes for accessibility (WCAG AA 4.5:1) */
+/* Override muted-foreground with opacity to use pre-mixed colors instead of alpha blending */
+[data-agents-page] [class*="text-muted-foreground/6"] {
+  color: hsl(0 0% 42%);
+}
+[data-agents-page] [class*="text-muted-foreground/5"],
+[data-agents-page] [class*="text-muted-foreground/4"] {
+  color: hsl(0 0% 48%);
+}
+.dark [data-agents-page] [class*="text-muted-foreground/6"] {
+  color: hsl(0 0% 62%);
+}
+.dark [data-agents-page] [class*="text-muted-foreground/5"],
+.dark [data-agents-page] [class*="text-muted-foreground/4"] {
+  color: hsl(0 0% 58%);
+}
+/* Fix low-contrast backgrounds (inline code, subtle highlights) */
+[data-agents-page] [class*="bg-foreground/0"] {
+  background-color: hsl(0 0% 88%);
+}
+.dark [data-agents-page] [class*="bg-foreground/0"] {
+  background-color: hsl(0 0% 24%);
 }
 
 /* ========================================

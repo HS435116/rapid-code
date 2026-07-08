@@ -245,6 +245,13 @@ contextBridge.exposeInMainWorld("desktopApi", {
   // VS Code theme scanning
   scanVSCodeThemes: () => ipcRenderer.invoke("vscode:scan-themes"),
   loadVSCodeTheme: (themePath: string) => ipcRenderer.invoke("vscode:load-theme", themePath),
+
+  // Voice dialogue - TTS audio playback
+  onVoicePlayAudio: (callback: (data: { audioBase64: string; format: string }) => void) => {
+    const handler = (_event: unknown, data: { audioBase64: string; format: string }) => callback(data)
+    ipcRenderer.on("voice:play-audio", handler)
+    return () => ipcRenderer.removeListener("voice:play-audio", handler)
+  },
 })
 
 // Type definitions

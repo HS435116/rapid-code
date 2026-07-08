@@ -17,6 +17,7 @@ import { worktreeConfigRouter } from "./worktree-config"
 import { sandboxImportRouter } from "./sandbox-import"
 import { commandsRouter } from "./commands"
 import { voiceRouter } from "./voice"
+import { voiceDialogueRouter } from "./voice-dialogue"
 import { pluginsRouter } from "./plugins"
 import { openaiChatRouter } from "./openai-chat"
 import { createGitRouter } from "../../git"
@@ -46,6 +47,7 @@ export function createAppRouter(getWindow: () => BrowserWindow | null) {
     sandboxImport: sandboxImportRouter,
     commands: commandsRouter,
     voice: voiceRouter,
+    voiceDialogue: voiceDialogueRouter,
     plugins: pluginsRouter,
     openai: openaiChatRouter,
     // Git operations - named "changes" to match Superset API

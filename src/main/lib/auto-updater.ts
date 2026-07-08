@@ -181,7 +181,7 @@ export async function initAutoUpdater(getWindows: () => BrowserWindow[]) {
   // Register IPC handlers
   registerIpcHandlers()
 
-  log.info("[AutoUpdater] Initialized with feed URL:", GITHUB_RELEASES_URL)
+  log.info("[AutoUpdater] Initialized with GitHub provider: HS435116/rapid-code")
 }
 
 /**
@@ -194,28 +194,13 @@ function registerIpcHandlers() {
       log.info("[AutoUpdater] Skipping update check in dev mode")
       return null
     }
-    try {
-      // If force is true, add cache-busting timestamp to URL
-      if (force) {
-        const cacheBuster = `?t=${Date.now()}`
-        autoUpdater.setFeedURL({
-          provider: "github",
-          owner: "HS435116",
-          repo: "rapid-code",
-          url: `${GITHUB_RELEASES_URL}${cacheBuster}`,
-        })
-        log.info("[AutoUpdater] Force check with cache-busting:", `${GITHUB_RELEASES_URL}${cacheBuster}`)
-      }
-      const result = await autoUpdater.checkForUpdates()
-      // Reset feed URL back to normal after force check
-      if (force) {
-        autoUpdater.setFeedURL({
-          provider: "github",
-          owner: "HS435116",
-          repo: "rapid-code",
-        })
-      }
-      return result?.updateInfo || null
+	    try {
+	      // If force is true, log it (GitHub provider handles caching internally)
+	      if (force) {
+	        log.info("[AutoUpdater] Force check for updates")
+	      }
+	      const result = await autoUpdater.checkForUpdates()
+	      return result?.updateInfo || null
     } catch (error) {
       log.error("[AutoUpdater] Check failed:", error)
       return null
