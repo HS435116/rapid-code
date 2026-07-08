@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.75] - 2026-07-08
+
+### 🚀 New Features
+
+- **MCP 设置支持自定义提供商** — 新增 "Custom (Manual Config)" 提供商选项，支持自由添加第三方 MCP 服务器
+- **MCP 设置支持环境变量** — 添加 MCP 服务器时可配置环境变量（AGNES_API_KEY 等），敏感字段自动密码掩码
+- **agnes-image MCP 支持环境变量 Key** — 支持通过 `AGNES_API_KEY` 环境变量传入 API Key，适配打包后的 MCP 配置流程
+- **打包兼容** — `scripts/mcp` 和 MCP 脚本已加入 extraResources，打包后路径自动适应
+
+### 🔧 Bug Fixes
+
+- 修复 MCP 设置没有自定义选项导致无法添加第三方服务器的问题
+
 ## [0.0.74] - 2026-07-08
 
 ### 🚀 New Features
