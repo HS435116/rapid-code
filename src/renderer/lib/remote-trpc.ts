@@ -14,7 +14,10 @@ let cachedApiBase: string | null = null
 
 async function getApiBase(): Promise<string> {
   if (!cachedApiBase) {
-    cachedApiBase = await window.desktopApi?.getApiBaseUrl() || "https://21st.dev"
+    cachedApiBase = await window.desktopApi?.getApiBaseUrl() || ""
+    if (!cachedApiBase) {
+      console.warn("[RemoteTRPC] No API base URL configured, remote tRPC disabled")
+    }
   }
   return cachedApiBase
 }

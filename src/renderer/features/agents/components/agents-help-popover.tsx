@@ -69,10 +69,12 @@ export function AgentsHelpPopover({
   const setOpen = controlledOnOpenChange ?? setInternalOpen
 
   useEffect(() => {
-    let cancelled = false
-    window.desktopApi
-      .signedFetch("https://21st.dev/api/changelog/desktop?per_page=3")
-      .then((result) => {
+    let cancelled = false;
+    (async () => {
+      const apiBase = await window.desktopApi?.getApiBaseUrl()
+      if (!apiBase) return
+      try {
+        const result = await window.desktopApi.signedFetch(`${apiBase}/api/changelog/desktop?per_page=3`)
         if (cancelled) return
         const data = result.data as {
           releases?: Array<{ version?: string; content?: string }>
@@ -86,26 +88,10 @@ export function AgentsHelpPopover({
           }
           setHighlights(items)
         }
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
+      } catch {}
+    })()
+    return () => { cancelled = true }
   }, [])
-
-  const handleCommunityClick = () => {
-    window.desktopApi.openExternal("https://discord.gg/8ektTZGnj4")
-  }
-
-  const handleChangelogClick = () => {
-    window.desktopApi.openExternal("https://1code.dev/agents/changelog")
-  }
-
-  const handleReleaseClick = (version: string) => {
-    window.desktopApi.openExternal(
-      `https://1code.dev/agents/changelog#${version}`,
-    )
-  }
 
   const handleKeyboardShortcutsClick = () => {
     setOpen(false)

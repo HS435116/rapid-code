@@ -35,6 +35,18 @@ try {
   console.warn("[App] Failed to load .env:", err)
 }
 
+// Forcefully clear proxy env vars that block network requests
+// (User may have inherited these from terminal/shell session)
+const proxyVars = ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"]
+for (const v of proxyVars) {
+  try { delete process.env[v] } catch {}
+  process.env[v] = ""
+}
+// Bypass any system proxy entirely (affects Chromium's network stack)
+process.env.NO_PROXY = "*"
+process.env.no_proxy = "*"
+console.log("[App] Cleared proxy environment variables")
+
 import { AuthManager, initAuthManager, getAuthManager as getAuthManagerFromModule } from "./auth-manager"
 import {
   identify,
@@ -90,6 +102,24 @@ if (IS_DEV) {
 // under heavy multi-chat workloads. Must be set before app readiness/window creation.
 app.commandLine.appendSwitch("js-flags", "--max-old-space-size=8192")
 
+// Force Chromium to bypass any system proxy (ensures Web Speech API can reach Google servers)
+app.commandLine.appendSwitch("no-proxy-server")
+// Force Chromium to use native Windows audio API for microphone access
+app.commandLine.appendSwitch("enable-features", "WebRtcUseNativeAudio,WebSpeech")
+// Disable audio processing that might conflict with some drivers
+app.commandLine.appendSwitch("disable-webrtc-echo-cancellation")
+app.commandLine.appendSwitch("disable-webrtc-noise-suppression")
+
+// Log audio devices detected by Windows (for diagnostics)
+try {
+  const { execSync } = require("child_process")
+  const cmd = 'powershell -Command "Get-CimInstance Win32_SoundDevice | Select-Object Name, Status | Format-Table -AutoSize"'
+  const audioDevices = execSync(cmd, { encoding: "utf8", timeout: 5000 })
+  console.log("[App] Audio devices:\n" + audioDevices.trim())
+} catch (e) {
+  console.log("[App] Could not enumerate audio devices:", (e as Error)?.message || "unknown")
+}
+
 // Initialize Sentry before app is ready (production only)
 if (app.isPackaged && !IS_DEV) {
   const sentryDsn = import.meta.env.MAIN_VITE_SENTRY_DSN
@@ -110,17 +140,20 @@ if (app.isPackaged && !IS_DEV) {
 }
 
 // URL configuration (exported for use in other modules)
-// In packaged app, ALWAYS use production URL to prevent localhost leaking into releases
-// In dev mode, allow override via MAIN_VITE_API_URL env variable
+// Delegates to shared config.ts which supports MAIN_VITE_API_URL override
+import { getApiUrl as getConfigApiUrl } from "./lib/config"
+
 export function getBaseUrl(): string {
-  if (app.isPackaged) {
-    return "https://21st.dev"
-  }
-  return import.meta.env.MAIN_VITE_API_URL || "https://21st.dev"
+  return getConfigApiUrl()
 }
 
 export function getAppUrl(): string {
-  return process.env.ELECTRON_RENDERER_URL || "https://21st.dev/agents"
+  const base = process.env.ELECTRON_RENDERER_URL || getConfigApiUrl()
+  // If base doesn't already have /agents path, add it
+  if (!base.includes("/agents")) {
+    return `${base.replace(/\/+$/, "")}/agents`
+  }
+  return base
 }
 
 // Auth manager singleton (use the one from auth-manager module)
@@ -606,9 +639,43 @@ if (gotTheLock) {
       app.setAppUserModelId(IS_DEV ? "dev.rapidcode.dev" : "dev.rapidcode")
     }
 
-    console.log(`[App] Starting Rapid Code${IS_DEV ? " (DEV)" : ""}...`)
+	    console.log(`[App] Starting Rapid Code${IS_DEV ? " (DEV)" : ""}...`)
 
-    // Verify protocol registration after app is ready
+	    // Grant microphone permission for voice input (Web Speech API / MediaRecorder)
+	    // Must be set on the specific session partition used by the app ("persist:main")
+	    const mainSession = session.fromPartition("persist:main")
+	    console.log("[App] Setting permission handler on persist:main session")
+
+	    // Permission request handler (legacy API)
+	    mainSession.setPermissionRequestHandler((webContents, permission, callback) => {
+	      console.log("[App] Permission request:", permission, "from URL:", webContents.getURL())
+	      if (permission === "media" || permission === "mediaKeySystem") {
+	        console.log("[App] Granting media permission")
+	        callback(true)
+	      } else {
+	        console.log("[App] Denying permission:", permission)
+	        callback(false)
+	      }
+	    })
+	    // Permission check handler (newer API, required for getUserMedia in some Electron versions)
+	    mainSession.setPermissionCheckHandler((webContents, permission) => {
+	      if (permission === "media") {
+	        return true
+	      }
+	      return false
+	    })
+	    // Also set on default session as fallback
+	    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+	      if (permission === "media" || permission === "mediaKeySystem") {
+	        callback(true)
+	      }
+	    })
+	    session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+	      if (permission === "media") return true
+	      return false
+	    })
+
+	    // Verify protocol registration after app is ready
     // This helps diagnose first-install issues where the protocol isn't recognized yet
     verifyProtocolRegistration()
 
@@ -872,10 +939,15 @@ if (gotTheLock) {
           role: "help",
           submenu: [
             {
-              label: "Learn More",
+              label: "About Rapid Code",
               click: async () => {
-                const { shell } = await import("electron")
-                await shell.openExternal("https://21st.dev")
+                const { dialog } = await import("electron")
+                dialog.showMessageBox({
+                  type: "info",
+                  title: "Rapid Code",
+                  message: `Rapid Code v${app.getVersion()}`,
+                  detail: "AI-powered coding assistant",
+                })
               },
             },
           ],

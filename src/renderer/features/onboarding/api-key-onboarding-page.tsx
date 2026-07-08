@@ -146,15 +146,7 @@ export function ApiKeyOnboardingPage() {
                 Enter API Key
               </h1>
               <p className="text-sm text-muted-foreground">
-                Get your API key from{" "}
-                <a
-                  href="https://console.anthropic.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground hover:underline"
-                >
-                  console.anthropic.com
-                </a>
+                Enter your Anthropic API key to get started
               </p>
             </div>
           </div>

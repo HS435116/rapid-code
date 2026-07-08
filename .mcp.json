@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/specification/main/schema/mcp.json",
+  "description": "Rapid Code 本地 MCP 工具配置 - 完全自包含，无需外部平台",
+  "mcpServers": {
+    "seedance": {
+      "command": "python",
+      "args": ["scripts/mcp/seedance_tool.py"],
+      "description": "Seedance 视频/动画生成 - 支持本地模式和 API 模式",
+      "env": {
+        "SEEDANCE_MODE": "local"
+      }
+    },
+    "agnes-image": {
+      "command": "node",
+      "args": ["agnes-image-mcp.js"],
+      "description": "Agnes AI 图片生成 MCP 工具"
+    }
+  }
+}

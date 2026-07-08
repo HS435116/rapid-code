@@ -1200,7 +1200,7 @@ const AutomationsButton = memo(function AutomationsButton() {
   const automationsEnabled = useAtomValue(betaAutomationsEnabledAtom)
 
   const handleClick = useCallback(() => {
-    window.desktopApi.openExternal("https://21st.dev/agents/app/automations")
+    // Automations feature placeholder (external link removed)
   }, [])
 
   if (!automationsEnabled) return null

@@ -27,6 +27,7 @@ import { applyRollbackStash } from "../../git/stash"
 import { checkInternetConnection, checkOllamaStatus } from "../../ollama"
 import { terminalManager } from "../../terminal/manager"
 import { publicProcedure, router } from "../index"
+import { getApiUrl } from "../../config"
 
 type WorktreeSetupFailurePayload = {
   kind: "create-failed" | "setup-failed"
@@ -1271,13 +1272,12 @@ export const chatsRouter = router({
         console.log("[generateCommitMessage] Ollama failed, using heuristic fallback")
         // Fall through to heuristic fallback below
       } else {
-        // Online - call web API to generate commit message
-        let apiError: string | null = null
-        try {
-          const authManager = getAuthManager()
-          const token = await authManager.getValidToken()
-          // Use localhost in dev, production otherwise
-          const apiUrl = process.env.NODE_ENV === "development" ? "http://localhost:3000" : "https://21st.dev"
+	        // Online - call web API to generate commit message
+	        let apiError: string | null = null
+	        try {
+	          const authManager = getAuthManager()
+	          const token = await authManager.getValidToken()
+	          const apiUrl = getApiUrl()
 
           if (!token) {
             apiError = "No auth token available"
@@ -1409,9 +1409,9 @@ export const chatsRouter = router({
           return { name: getFallbackName(input.userMessage) }
         }
 
-        const apiUrl = "https://21st.dev"
+	        const apiUrl = getApiUrl()
 
-        console.log(
+	        console.log(
           "[generateSubChatName] Online - calling API with token:",
           token ? "present" : "missing",
         )

@@ -63,22 +63,16 @@ const ERROR_TOAST_CONFIG: Record<
     title: "Session limit reached",
     description: "You've hit the Claude Code usage limit.",
     action: {
-      label: "View usage",
-      onClick: () =>
-        trpcClient.external.openExternal.mutate(
-          "https://claude.ai/settings/usage",
-        ),
+      label: "Dismiss",
+      onClick: () => {},
     },
   },
   RATE_LIMIT: {
     title: "Session limit reached",
     description: "You've hit the Claude Code usage limit.",
     action: {
-      label: "View usage",
-      onClick: () =>
-        trpcClient.external.openExternal.mutate(
-          "https://claude.ai/settings/usage",
-        ),
+      label: "Dismiss",
+      onClick: () => {},
     },
   },
   OVERLOADED_SDK: {
