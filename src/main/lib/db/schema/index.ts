@@ -128,6 +128,26 @@ export const anthropicSettings = sqliteTable("anthropic_settings", {
   ),
 })
 
+// ============ MEMORIES (Knowledge Base) ============
+export const memories = sqliteTable("memories", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  content: text("content").notNull(), // Full memory/knowledge content
+  summary: text("summary").notNull(), // Short summary for browsing
+  category: text("category").default("general"), // general | code | user_pref | project | tech
+  tags: text("tags").default("[]"), // JSON array of tags
+  sourceChatId: text("source_chat_id"), // Source conversation ID
+  sourceUrl: text("source_url"), // Source URL (from web learning)
+  importance: integer("importance").default(1), // 1-5 importance scale
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date(),
+  ),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(
+    () => new Date(),
+  ),
+})
+
 // ============ TYPE EXPORTS ============
 export type Project = typeof projects.$inferSelect
 export type NewProject = typeof projects.$inferInsert
@@ -137,6 +157,8 @@ export type SubChat = typeof subChats.$inferSelect
 export type NewSubChat = typeof subChats.$inferInsert
 export type ClaudeCodeCredential = typeof claudeCodeCredentials.$inferSelect
 export type NewClaudeCodeCredential = typeof claudeCodeCredentials.$inferInsert
+export type Memory = typeof memories.$inferSelect
+export type NewMemory = typeof memories.$inferInsert
 export type AnthropicAccount = typeof anthropicAccounts.$inferSelect
 export type NewAnthropicAccount = typeof anthropicAccounts.$inferInsert
 export type AnthropicSettings = typeof anthropicSettings.$inferSelect

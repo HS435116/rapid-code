@@ -6,6 +6,7 @@ import { observable } from "@trpc/server/observable"
 import { z } from "zod"
 import { publicProcedure, router } from "../../trpc"
 import { streamOpenAI } from "../../openai-handler"
+import { getMemoryContext } from "../../memory/memory-injector"
 import type { UIMessageChunk } from "../../claude/types"
 
 const imageAttachmentSchema = z.object({
@@ -99,9 +100,19 @@ export const openaiChatRouter = router({
             }
 
             // Build system prompt with working directory
-            const systemPrompt = input.cwd
+            let systemPrompt = input.cwd
               ? `${CODING_ASSISTANT_SYSTEM_PROMPT} ${input.cwd}`
               : CODING_ASSISTANT_SYSTEM_PROMPT
+
+            // Inject relevant memories into system prompt
+            try {
+              const memoryCtx = getMemoryContext(input.prompt, 3)
+              if (memoryCtx) {
+                systemPrompt += `\n\n${memoryCtx}`
+              }
+            } catch (err) {
+              console.error("[OpenAI] Memory injection error:", err)
+            }
 
             // Build full message history if messages provided, otherwise use single prompt
             const messages = input.messages && input.messages.length > 0

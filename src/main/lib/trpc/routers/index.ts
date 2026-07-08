@@ -20,6 +20,7 @@ import { voiceRouter } from "./voice"
 import { voiceDialogueRouter } from "./voice-dialogue"
 import { pluginsRouter } from "./plugins"
 import { openaiChatRouter } from "./openai-chat"
+import { memoriesRouter } from "./memories"
 import { createGitRouter } from "../../git"
 import { BrowserWindow } from "electron"
 
@@ -50,6 +51,7 @@ export function createAppRouter(getWindow: () => BrowserWindow | null) {
     voiceDialogue: voiceDialogueRouter,
     plugins: pluginsRouter,
     openai: openaiChatRouter,
+    memories: memoriesRouter,
     // Git operations - named "changes" to match Superset API
     changes: createGitRouter(),
   })

@@ -10,6 +10,11 @@
         "SEEDANCE_MODE": "local"
       }
     },
+    "learn_tool": {
+      "command": "python",
+      "args": ["scripts/mcp/learn_tool.py"],
+      "description": "Web 搜索和学习工具 - 搜索互联网、获取网页内容、提取知识"
+    },
     "agnes-image": {
       "command": "node",
       "args": ["agnes-image-mcp.js"],
