@@ -26,10 +26,10 @@ import {
 } from "./mcp"
 import { useListKeyboardNav } from "./use-list-keyboard-nav"
 
-type McpProvider = "claude-code" | "codex"
+type McpProvider = "claude-code" | "codex" | "custom"
 type ProviderSection = {
   provider: McpProvider
-  title: "CODEX" | "CLAUDE CODE"
+  title: "CODEX" | "CLAUDE CODE" | "CUSTOM"
 }
 
 type ListedServer = {
@@ -321,6 +321,7 @@ function CreateMcpServerForm({
           env,
         })
       } else {
+        // "claude-code" and "custom" both use claude backend (~/.claude.json)
         await addClaudeServerMutation.mutateAsync({
           name: name.trim(),
           transport: type,
@@ -371,6 +372,7 @@ function CreateMcpServerForm({
             <SelectContent>
               <SelectItem value="codex">OpenAI Codex</SelectItem>
               <SelectItem value="claude-code">Claude Code</SelectItem>
+              <SelectItem value="custom">Custom (Manual Config)</SelectItem>
             </SelectContent>
           </Select>
         </div>
